@@ -169,3 +169,15 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+Test Calculator/.idea/Test Calculator.iml
+Test Calculator/.idea/inspectionProfiles/profiles_settings.xml
+Test Calculator/.idea/inspectionProfiles/Project_Default.xml
+Test Calculator/.idea/misc.xml
+Test Calculator/.idea/modules.xml
+Test Calculator/calories.db
+Calorie Tracker/.idea/inspectionProfiles/profiles_settings.xml
+Calorie Tracker/.idea/inspectionProfiles/Project_Default.xml
+Calorie Tracker/.idea/misc.xml
+Calorie Tracker/.idea/modules.xml
+Calorie Tracker/.idea/Test Calculator.iml
+Calorie Tracker/calories.db
