@@ -8,66 +8,7 @@ from matplotlib.figure import Figure
 import sqlite3
 import bcrypt
 import csv
-
-
-# Functions for the calculations
-def calculate_bmr(weight: float, height: float, sex: str, age: int) -> int:
-    """Calculates the bmr of the user"""
-    if sex == "male":
-        bmr = 66 + (6.3 * weight) + (12.9 * height) - (6.8 * age)
-    else:
-        bmr = 655 + (4.3 * weight) + (4.7 * height) - (4.7 * age)
-    return round(bmr)
-
-
-def calculate_daily_calories(bmr: int, activity_level: str) -> int:
-    """Calculates the daily calorie intake"""
-    levels ={
-        "sedentary": 1.2,
-        "lightly active": 1.375,
-        "moderately active": 1.55,
-        "very active": 1.725
-    }
-    return round(bmr * levels.get(activity_level, 1.2))
-
-
-def calculate_calories(food_quantity: int, calories_per_100_g: int) -> int:
-    """Calculates the calories in a given food item"""
-    return round((food_quantity / 100) * calories_per_100_g)
-
-
-def initialize_database() -> None:
-    """Creates tables for user authentication and
-    calorie tracking if they don’t exist."""
-    conn = sqlite3.connect("calories.db")
-    cursor = conn.cursor()
-
-    # Create the users table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            daily_goal INTEGER DEFAULT 0
-        )
-    """)
-
-    # Create the calorie logs table (linked to users)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS calorie_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            food_name TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
-            calories_per_100g INTEGER NOT NULL,
-            total_calories INTEGER NOT NULL,
-            meal_type TEXT NOT NULL,
-            date TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(id)
-        )
-    """)
-    conn.commit()
-    conn.close()
+from helpers.helpers import calculate_bmr, calculate_calories, calculate_daily_calories, get_connection, initialize_database
 
 
 class CaloriesCalculator:
@@ -160,13 +101,13 @@ class CaloriesCalculator:
         ).grid(row=9, column=0, pady=5)
 
         if self.daily_goal is not None and self.daily_goal > 0:
-            conn = sqlite3.connect("calories.db")
+            conn = get_connection()
             cursor = conn.cursor()
             today_str = date.today().strftime("%Y-%m-%d")
             cursor.execute("""SELECT SUM(total_calories) 
             FROM calorie_logs 
-            WHERE user_id=? 
-            AND date=?""",
+            WHERE user_id=%s 
+            AND date=%s""",
             (self.user_id, today_str)
             )
 
@@ -238,10 +179,10 @@ class CaloriesCalculator:
         username = self.username_entry.get()
         password = self.password_entry.get()
 
-        conn = sqlite3.connect("calories.db")
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id, password, daily_goal FROM users WHERE username=?",
+            "SELECT id, password, daily_goal FROM users WHERE username=%s",
             (username,)
         )
         user = cursor.fetchone()
@@ -304,12 +245,12 @@ class CaloriesCalculator:
         password = self.new_password_entry.get()
         hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
-        conn = sqlite3.connect("calories.db")
+        conn = get_connection()
         cursor = conn.cursor()
 
         try:
             cursor.execute(
-                "INSERT INTO users (username, password) VALUES (?, ?)",
+                "INSERT INTO users (username, password) VALUES (%s, %s)",
                 (username, hashed_password)
             )
             conn.commit()
@@ -509,7 +450,7 @@ class CaloriesCalculator:
             meal_type = self.meal_type_var.get()
             date_today = date.today().strftime("%Y-%m-%d")
 
-            conn = sqlite3.connect("calories.db")
+            conn = get_connection()
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO calorie_logs 
@@ -520,7 +461,7 @@ class CaloriesCalculator:
                 total_calories, 
                 meal_type, 
                 date)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 self.user_id,
@@ -545,7 +486,7 @@ class CaloriesCalculator:
     def update_log_display(self):
         self.log_listbox.delete(0, tk.END)
         self.log_ids = []  # Store the corresponding log IDs
-        conn = sqlite3.connect("calories.db")
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
             """SELECT id,
@@ -553,7 +494,7 @@ class CaloriesCalculator:
              quantity, 
              total_calories, 
              meal_type 
-             FROM calorie_logs WHERE user_id=?""",
+             FROM calorie_logs WHERE user_id=%s""",
             (self.user_id,))
         logs = cursor.fetchall()
         conn.close()
@@ -568,13 +509,13 @@ class CaloriesCalculator:
             index = self.log_listbox.curselection()[0]
             self.selected_log_id = self.log_ids[index]  # Use the stored ID
 
-            conn = sqlite3.connect("calories.db")
+            conn = get_connection()
             cursor = conn.cursor()
             cursor.execute("""SELECT food_name, 
             quantity, 
             calories_per_100g 
             FROM calorie_logs 
-            WHERE id=?""",
+            WHERE id=%s""",
             (self.selected_log_id,)
             )
 
@@ -604,16 +545,16 @@ class CaloriesCalculator:
             total_calories = (quantity / 100) * calories_per_100g
             meal_type = self.meal_type_var.get()  # Include meal type
 
-            conn = sqlite3.connect("calories.db")
+            conn = get_connection()
             cursor = conn.cursor()
             cursor.execute("""
                     UPDATE calorie_logs
-                    SET food_name=?, 
-                    quantity=?, 
-                    calories_per_100g=?, 
-                    total_calories=?, 
-                    meal_type=?
-                    WHERE id=?
+                    SET food_name=%s, 
+                    quantity=%s, 
+                    calories_per_100g=%s, 
+                    total_calories=%s, 
+                    meal_type=%s
+                    WHERE id=%s
                 """, (
                 food_name,
                 quantity,
@@ -638,9 +579,9 @@ class CaloriesCalculator:
             index = self.log_listbox.curselection()[0]
             log_id = self.log_ids[index]  # Get the ID from the stored list
 
-            conn = sqlite3.connect("calories.db")
+            conn = get_connection()
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM calorie_logs WHERE id=?", (log_id,))
+            cursor.execute("DELETE FROM calorie_logs WHERE id=%s", (log_id,))
             conn.commit()
             conn.close()
 
@@ -652,12 +593,12 @@ class CaloriesCalculator:
 
     def finish_session(self):
         """Finishes the current session and displays a summary"""
-        conn = sqlite3.connect("calories.db")
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
             """SELECT SUM(total_calories) 
             FROM calorie_logs 
-            WHERE user_id=? AND date=?""",
+            WHERE user_id=%s AND date=%s""",
             (self.user_id, date.today().strftime("%Y-%m-%d"))
         )
 
@@ -677,13 +618,13 @@ class CaloriesCalculator:
 
     def show_graph(self):
         """Displays a bar graph with the data from the database"""
-        conn = sqlite3.connect("calories.db")
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
             """SELECT food_name, 
             SUM(total_calories) 
             FROM calorie_logs 
-            WHERE user_id=? 
+            WHERE user_id=%s 
             GROUP BY food_name""",
             (self.user_id,)
         )
@@ -705,13 +646,13 @@ class CaloriesCalculator:
 
     def show_trend_graph(self):
         """Displays a trend graph"""
-        conn = sqlite3.connect("calories.db")
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
             """SELECT date, 
             SUM(total_calories) 
             FROM calorie_logs 
-            WHERE user_id=? 
+            WHERE user_id=%s 
             GROUP BY date""",
             (self.user_id,)
         )
@@ -773,11 +714,11 @@ class CaloriesCalculator:
             self.daily_goal = new_goal
 
             # Update the user's daily goal in the database
-            conn = sqlite3.connect("calories.db")
+            conn = get_connection()
             cursor = conn.cursor()
 
             cursor.execute(
-                "UPDATE users SET daily_goal=? WHERE id=?",
+                "UPDATE users SET daily_goal=%s WHERE id=%s",
                 (new_goal, self.user_id)
             )
             conn.commit()
@@ -797,7 +738,7 @@ class CaloriesCalculator:
     def export_logs(self):
         """Exports the logs of the current user to a csv file"""
         # Query the database for the current user's logs
-        conn = sqlite3.connect("calories.db")
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute(
@@ -808,7 +749,7 @@ class CaloriesCalculator:
             meal_type, 
             date 
             FROM calorie_logs 
-            WHERE user_id=?""",
+            WHERE user_id=%s""",
             (self.user_id,)
         )
 
@@ -858,8 +799,8 @@ class CaloriesCalculator:
             font=("Arial", 18, "bold")
         ).grid(row=0, column=0, columnspan=2,pady=10)
 
-        # Query the last 7 days od data
-        conn = sqlite3.connect("calories.db")
+        # Query the last 7 days of data
+        conn = get_connection()
         cursor = conn.cursor()
 
         days = []
@@ -872,7 +813,7 @@ class CaloriesCalculator:
 
             cursor.execute("""SELECT SUM(total_calories) 
             FROM calorie_logs 
-            WHERE user_id=? AND date=?""", (self.user_id, day_str))
+            WHERE user_id=%s AND date=%s""", (self.user_id, day_str))
             result = cursor.fetchone()[0]
             totals.append(result if result is not None else 0)
 
