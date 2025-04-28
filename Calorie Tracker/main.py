@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-import sqlite3
+import psycopg2
 import bcrypt
 import csv
 from helpers.helpers import calculate_bmr, calculate_calories, calculate_daily_calories, get_connection, initialize_database
@@ -257,7 +257,7 @@ class CaloriesCalculator:
             messagebox.showinfo("Success", "Registration successful!")
             self.show_login_screen()
 
-        except sqlite3.IntegrityError:
+        except psycopg2.IntegrityError:
             messagebox.showerror("Error", "Username already exists.")
 
         conn.close()
@@ -445,43 +445,90 @@ class CaloriesCalculator:
         try:
             food_name = self.food_entry.get()
             quantity = int(self.quantity_entry.get())
-            calories_per_100g = int(self.calories_entry.get())
-            total_calories = calculate_calories(quantity, calories_per_100g)
-            meal_type = self.meal_type_var.get()
-            date_today = date.today().strftime("%Y-%m-%d")
 
             conn = get_connection()
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO calorie_logs 
-                (user_id, 
-                food_name, 
-                quantity, 
-                calories_per_100g, 
-                total_calories, 
-                meal_type, 
-                date)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
+                SELECT calories FROM food_data
+                    WHERE name=%s
+            """, food_name)
+
+            calories_per_100g = int(cursor.fetchone())
+            total_calories = calculate_calories(quantity, calories_per_100g)
+            meal_type = self.meal_type_var.get()
+            date_today = date.today().strftime("%Y-%m-%d")
+
+            cursor.execute("""
+                INSERT INTO calorie_logs
+                 (user_id,
+                 food_name,
+                 quantity,
+                 calories_per_100g,
+                 total_calories,
+                 meal_type,
+                 date)
+                 VALUES (%s, %s, %s, %s, %s, %s, %s)
+             """, (
                 self.user_id,
                 food_name,
                 quantity,
                 calories_per_100g,
                 total_calories,
-                meal_type, date_today
-            )
-            )
+                meal_type,
+                date_today
+            ))
+
             conn.commit()
             conn.close()
 
-            self.update_log_display()
-            self.food_entry.delete(0, tk.END)
-            self.quantity_entry.delete(0, tk.END)
-            self.calories_entry.delete(0, tk.END)
-
         except ValueError:
             messagebox.showerror("Error", "Please enter valid data.")
+
+        except psycopg2.DatabaseError as error:
+            messagebox.showerror("Error", f"{error}")
+
+
+
+        # try:
+        #     food_name = self.food_entry.get()
+        #     quantity = int(self.quantity_entry.get())
+        #     calories_per_100g = int(self.calories_entry.get())
+        #     total_calories = calculate_calories(quantity, calories_per_100g)
+        #     meal_type = self.meal_type_var.get()
+        #     date_today = date.today().strftime("%Y-%m-%d")
+        #
+        #     conn = get_connection()
+        #     cursor = conn.cursor()
+        #     cursor.execute("""
+        #         INSERT INTO calorie_logs
+        #         (user_id,
+        #         food_name,
+        #         quantity,
+        #         calories_per_100g,
+        #         total_calories,
+        #         meal_type,
+        #         date)
+        #         VALUES (%s, %s, %s, %s, %s, %s, %s)
+        #     """,
+        #     (
+        #         self.user_id,
+        #         food_name,
+        #         quantity,
+        #         calories_per_100g,
+        #         total_calories,
+        #         meal_type, date_today
+        #     )
+        #     )
+        #     conn.commit()
+        #     conn.close()
+        #
+        #     self.update_log_display()
+        #     self.food_entry.delete(0, tk.END)
+        #     self.quantity_entry.delete(0, tk.END)
+        #     self.calories_entry.delete(0, tk.END)
+        #
+        # except ValueError:
+        #     messagebox.showerror("Error", "Please enter valid data.")
 
     def update_log_display(self):
         self.log_listbox.delete(0, tk.END)

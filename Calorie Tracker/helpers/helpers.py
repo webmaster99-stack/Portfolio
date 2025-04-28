@@ -70,9 +70,9 @@ def initialize_database():
             id SERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             calories REAL NOT NULL,
-            protein REAL NOT NULL,
-            carbs REAL NOT NULL,
-            fat REAL NOT NULL
+            protein REAL,
+            carbs REAL,
+            fat REAL
         )
     """)
 
