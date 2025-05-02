@@ -445,90 +445,46 @@ class CaloriesCalculator:
         try:
             food_name = self.food_entry.get()
             quantity = int(self.quantity_entry.get())
-
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT calories FROM food_data
-                    WHERE name=%s
-            """, food_name)
-
-            calories_per_100g = int(cursor.fetchone())
+            calories_per_100g = int(self.calories_entry.get())
             total_calories = calculate_calories(quantity, calories_per_100g)
             meal_type = self.meal_type_var.get()
             date_today = date.today().strftime("%Y-%m-%d")
 
+            conn = get_connection()
+            cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO calorie_logs
-                 (user_id,
-                 food_name,
-                 quantity,
-                 calories_per_100g,
-                 total_calories,
-                 meal_type,
-                 date)
-                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-             """, (
-                self.user_id,
+                (user_id,
                 food_name,
                 quantity,
                 calories_per_100g,
                 total_calories,
                 meal_type,
-                date_today
-            ))
-
+                date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                self.user_id,
+                food_name,
+                quantity,
+                calories_per_100g,
+                total_calories,
+                meal_type, date_today
+            )
+            )
             conn.commit()
             conn.close()
+
+            self.update_log_display()
+            self.food_entry.delete(0, tk.END)
+            self.quantity_entry.delete(0, tk.END)
+            self.calories_entry.delete(0, tk.END)
 
         except ValueError:
             messagebox.showerror("Error", "Please enter valid data.")
 
         except psycopg2.DatabaseError as error:
             messagebox.showerror("Error", f"{error}")
-
-
-
-        # try:
-        #     food_name = self.food_entry.get()
-        #     quantity = int(self.quantity_entry.get())
-        #     calories_per_100g = int(self.calories_entry.get())
-        #     total_calories = calculate_calories(quantity, calories_per_100g)
-        #     meal_type = self.meal_type_var.get()
-        #     date_today = date.today().strftime("%Y-%m-%d")
-        #
-        #     conn = get_connection()
-        #     cursor = conn.cursor()
-        #     cursor.execute("""
-        #         INSERT INTO calorie_logs
-        #         (user_id,
-        #         food_name,
-        #         quantity,
-        #         calories_per_100g,
-        #         total_calories,
-        #         meal_type,
-        #         date)
-        #         VALUES (%s, %s, %s, %s, %s, %s, %s)
-        #     """,
-        #     (
-        #         self.user_id,
-        #         food_name,
-        #         quantity,
-        #         calories_per_100g,
-        #         total_calories,
-        #         meal_type, date_today
-        #     )
-        #     )
-        #     conn.commit()
-        #     conn.close()
-        #
-        #     self.update_log_display()
-        #     self.food_entry.delete(0, tk.END)
-        #     self.quantity_entry.delete(0, tk.END)
-        #     self.calories_entry.delete(0, tk.END)
-        #
-        # except ValueError:
-        #     messagebox.showerror("Error", "Please enter valid data.")
 
     def update_log_display(self):
         self.log_listbox.delete(0, tk.END)
