@@ -39,10 +39,13 @@ def main():
             commands.commit(args.m)
 
         case "log":
-            commands.log
+            commands.log()
 
         case "diff":
             commands.diff(args.file)
+
+        case "branch":
+            commands.branch(args.name)
 
         case _:
             parser.print_help()

@@ -178,3 +178,18 @@ def diff(file_path):
 
     print("\n".join(diff_lines) or "No changes.")
 
+
+def branch(branch_name):
+    os.makedirs(os.path.join(VCS_DIR, "branches"), exist_ok=True)
+
+    if os.path.exists(os.path.join(VCS_DIR, "branches", branch_name)):
+        print(f"Branch '{branch_name}' already exists")
+        return
+
+    with open(HEAD_FILE) as f:
+        current_commit = f.read().strip()
+
+    with open(os.path.join(VCS_DIR, "branches", branch_name), "w") as f:
+        f.write(current_commit)
+
+    print(f"Created branch '{branch_name}'.")
