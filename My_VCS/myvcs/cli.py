@@ -23,6 +23,9 @@ def main():
     diff_parser = subparsers.add_parser("diff")
     diff_parser.add_argument("file")
 
+    branch_parser = subparsers.add_parser("branch")
+    branch_parser.add_argument("name")
+
     args = parser.parse_args()
 
     match args.command:
